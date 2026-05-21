@@ -42,7 +42,6 @@ router.post("/reserva", verificarUsuarioAutenticado, (req, res) => {
     const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
     const diaSemana = diasSemana[fechaInicio.getDay()];
     const fechaSolo = fechaInicio.toISOString().split('T')[0];
-
     // Obtener horarios bloqueados
     const queryBloqueados = `
         SELECT HORA_INICIO, HORA_FIN, MATERIA 
@@ -51,22 +50,18 @@ router.post("/reserva", verificarUsuarioAutenticado, (req, res) => {
             AND DIA_SEMANA = ?
             AND ? BETWEEN FECHA_INICIO AND FECHA_FIN
     `;
-
     connection.query(queryBloqueados, [RECURSOS_ID, diaSemana, fechaSolo], (err, bloqueados) => {
         if (err) {
             console.error("Error al verificar horarios bloqueados:", err);
             return res.status(500).json({ mensaje: "Error al validar disponibilidad" });
         }
-
         // Convertir horas de la reserva a formato TIME
         const horaInicioReserva = fechaInicio.toTimeString().substring(0, 8);
         const horaFinReserva = fechaFin.toTimeString().substring(0, 8);
-
         // Verificar solapamiento con clases
         for (const bloqueado of bloqueados) {
             const horaBloqueadoInicio = bloqueado.HORA_INICIO;
             const horaBloqueadoFin = bloqueado.HORA_FIN;
-
             if (
                 (horaInicioReserva >= horaBloqueadoInicio && horaInicioReserva < horaBloqueadoFin) ||
                 (horaFinReserva > horaBloqueadoInicio && horaFinReserva <= horaBloqueadoFin) ||
@@ -259,8 +254,7 @@ router.delete("/reserva/:id", verificarAutenticacion, (req, res) => {
 
 // ===== RUTAS EXCLUSIVAS PARA ADMINISTRADOR =====
 
-// IMPORTANTE: Estas rutas solo deben ser accesibles por administradores y seran 
-// probades en el frontend solo por el administrador.
+// IMPORTANTE: Estas rutas solo deben ser accesibles por administradores
 
 // 6. CAMBIAR ESTADO DE RESERVA (Solo Admin)
 router.put("/admin/reserva/:id/estado", verificarAdmin, (req, res) => {

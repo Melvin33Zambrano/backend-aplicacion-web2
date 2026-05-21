@@ -72,7 +72,7 @@ router.get("/recurso/:id", (req, res) => {
     });
 });
 
-// 🆕 OBTENER DISPONIBILIDAD DE UN RECURSO (Para el calendario)
+//  OBTENER DISPONIBILIDAD DE UN RECURSO (Para el calendario)
 router.get("/recurso/:id/disponibilidad", (req, res) => {
     const { id } = req.params;
     const { fecha } = req.query;
@@ -115,7 +115,6 @@ router.get("/recurso/:id/disponibilidad", (req, res) => {
             AND ESTADO IN ('CONFIRMADA', 'PENDIENTE')
         ORDER BY FECHA_INICIO
     `;
-
     // Ejecutar ambas consultas
     connection.query(queryBloqueados, [id, diaSemana, fecha], (err1, bloqueados) => {
         if (err1) {
@@ -125,7 +124,6 @@ router.get("/recurso/:id/disponibilidad", (req, res) => {
                 error: err1.message 
             });
         }
-
         connection.query(queryReservas, [id, fecha], (err2, reservas) => {
             if (err2) {
                 console.error('Error al obtener reservas:', err2);
@@ -134,7 +132,6 @@ router.get("/recurso/:id/disponibilidad", (req, res) => {
                     error: err2.message 
                 });
             }
-
             res.json({ 
                 bloqueados: bloqueados || [],
                 reservas: reservas || []

@@ -1,17 +1,17 @@
 const express = require('express');
 const router = express.Router();
-
-// Importar conexión
+const bcrypt = require('bcrypt');
 const connection = require('../db.js');
+const { verificarAdmin } = require('../middlewares/auth');
 
-// Crear usuario
-router.post('/crearUsuario', async (req, res) => {
+// Crear usuario (Solo Admin)
+router.post('/crearUsuario', verificarAdmin, async (req, res) => {
     const hashedPassword = await bcrypt.hash(req.body.CONTRASENA, 10);
     const nuevoUsuario = {
         NOMBRE: req.body.NOMBRE,
         APELLIDO: req.body.APELLIDO,
         CORREO: req.body.CORREO,
-        CONTRASENA: hashedPassword, // Contraseña encriptada  Cambios en 26-04-2026
+        CONTRASENA: hashedPassword,
         TIPO: req.body.TIPO,
         ROL_ID: req.body.ROL_ID
     };
@@ -19,33 +19,32 @@ router.post('/crearUsuario', async (req, res) => {
     connection.query('INSERT INTO usuarios SET ?', nuevoUsuario, (err, result) => {
         if (err) {
             console.error("Error al insertar usuario: ", err);
-            res.status(500).send("Error en el servidor");
+            res.status(500).json({ mensaje: "Error en el servidor" });
         } else {
-            res.send("Usuario creado exitosamente");
+            res.json({ mensaje: "Usuario creado exitosamente" });
         }
     });
 });
 
-// Obtener todos los usuarios
-router.get('/', (req, res) => {
-    connection.query("SELECT * FROM usuarios", (err, results) => {
+// Obtener todos los usuarios (Solo Admin)
+router.get('/', verificarAdmin, (req, res) => {
+    connection.query("SELECT USUARIO_ID, NOMBRE, APELLIDO, CORREO, TIPO, ROL_ID FROM usuarios", (err, results) => {
         if (err) return res.status(500).send("Error");
         res.json(results);
     });
 });
 
-// Obtener usuario por ID
-router.get('/:id', (req, res) => {
+// Obtener usuario por ID (Solo Admin)
+router.get('/:id', verificarAdmin, (req, res) => {
     const id = req.params.id;
-    connection.query("SELECT * FROM usuarios WHERE USUARIO_ID = ?", [id], (err, results) => {
+    connection.query("SELECT USUARIO_ID, NOMBRE, APELLIDO, CORREO, TIPO, ROL_ID FROM usuarios WHERE USUARIO_ID = ?", [id], (err, results) => {
         if (err) return res.status(500).send("Error");
         res.json(results[0]);
     });
 });
 
-
-// Actualizar usuario por ID
-router.put('/:id', (req, res) => {
+// Actualizar usuario por ID (Solo Admin)
+router.put('/:id', verificarAdmin, (req, res) => {
     const id = req.params.id;
     const data = req.body;
 
@@ -55,8 +54,10 @@ router.put('/:id', (req, res) => {
     });
 });
 
-// Eliminar usuario por ID
-router.delete('/:id', (req, res) => {
+
+
+// Eliminar usuario por ID (Solo Admin)
+router.delete('/:id', verificarAdmin, (req, res) => {
     const id = req.params.id;
 
     connection.query("DELETE FROM usuarios WHERE USUARIO_ID = ?", [id], (err, results) => {
@@ -64,5 +65,5 @@ router.delete('/:id', (req, res) => {
         res.send("Usuario eliminado");
     });
 });
-module.exports = router;
 
+module.exports = router;
