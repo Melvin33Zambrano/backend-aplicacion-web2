@@ -13,11 +13,14 @@
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
     "express": "^5.1.0",
     "express-mysql-session": "^3.0.3",
     "express-session": "^1.18.2",
     "lucide-react": "^0.546.0",
+    "multer": "^2.2.0",
     "mysql2": "^3.14.3",
+    "nodemailer": "^9.0.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "socket.io": "^4.8.3"

@@ -3,20 +3,22 @@ const cors = require("cors");
 const session = require("express-session");
 const http = require("http");
 const { Server } = require("socket.io");
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 
+
 const allowedOrigins = [
-  'http://localhost:3000',
-  'https://frontend-reservas-uleam.vercel.app',
-  /\.vercel\.app$/
+    'http://localhost:3000',
+    'https://frontend-reservas-uleam.vercel.app',
+    /\.vercel\.app$/
 ];
 
 // Configurar Socket.io
 const io = new Server(server, {
     cors: {
-        origin: /\.vercel\.app$/,
+        origin: allowedOrigins,
         credentials: true,
         methods: ["GET", "POST"]
     }
@@ -25,7 +27,7 @@ const io = new Server(server, {
 // Configurar CORS
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.some(o => 
+        if (!origin || allowedOrigins.some(o =>
             typeof o === 'string' ? o === origin : o.test(origin)
         )) {
             callback(null, true);
@@ -39,17 +41,20 @@ app.use(cors({
 app.set('trust proxy', 1);
 app.use(express.json());
 
+app.use('/images', express.static(path.join(__dirname, 'public/images')));
+
 // Configurar sesiones
 app.use(session({
     secret: process.env.SESSION_SECRET || '123',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: true,
-        sameSite: 'none',
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 1000 * 60 * 60 * 24
     }
-}));
+}       
+));
 
 // Importar rutas
 const authRoutes = require('./routes/auth');

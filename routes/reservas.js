@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const transporter = require('../config/email');
 
 // Importar conexión
 const connection = require('../db.js');
@@ -138,7 +139,7 @@ router.get("/reserva", verificarAutenticacion, (req, res) => {
     let query;
     let params = [];
 
-    if (req.session.usuario.rolId === 1) {
+    if (req.session.usuario.tipo === 'ADMINISTRADOR') {
         // Admin ve todas las reservas
         query = `
             SELECT r.*, u.NOMBRE as USUARIO_NOMBRE, rec.NOMBRE as RECURSO_NOMBRE 
@@ -172,6 +173,7 @@ router.get("/reserva", verificarAutenticacion, (req, res) => {
 
 // 3. OBTENER RESERVA POR ID (Solo el dueño de la reserva o admin)
 router.get("/reserva/:id", verificarAutenticacion, (req, res) => {
+    console.log("Entró a GET /reserva/:id");
     const id = req.params.id;
     const query = `
         SELECT r.*, u.NOMBRE as USUARIO_NOMBRE, rec.NOMBRE as RECURSO_NOMBRE 
@@ -187,26 +189,9 @@ router.get("/reserva/:id", verificarAutenticacion, (req, res) => {
             res.status(500).send("Error al obtener reserva");
         } else if (results.length === 0) {
             res.status(404).send("Reserva no encontrada");
-        } 
-        //  Notificar al usuario dueño de la reserva
-        const io = req.app.get('io');
-
-        // Buscar el usuario dueño de la reserva
-        const queryUsuario = 'SELECT USUARIO_ID FROM reservas WHERE RESERVAS_ID = ?';
-        connection.query(queryUsuario, [id], (err2, rows) => {
-            if (!err2 && rows.length > 0) {
-                io.to(`usuario_${rows[0].USUARIO_ID}`).emit('reserva_actualizada', {
-                    mensaje: `Tu reserva #${id} fue ${nuevoEstado.toLowerCase()}`,
-                    reservaId: id,
-                    nuevoEstado
-                });
-            }
-        });
-
-        res.json({
-            mensaje: `Reserva ${nuevoEstado.toLowerCase()} exitosamente`,
-            nuevoEstado
-        });
+        } else {
+            res.json(results[0]);
+        }
     });
 });
 
@@ -274,17 +259,95 @@ router.put("/admin/reserva/:id/estado", verificarAdmin, (req, res) => {
     connection.query(query, [nuevoEstado, id], (err, result) => {
         if (err) {
             console.error("Error al cambiar estado de reserva:", err);
-            res.status(500).send("Error al cambiar estado de reserva");
-        } else if (result.affectedRows === 0) {
-            res.status(404).send("Reserva no encontrada");
-        } else {
-            res.json({
-                mensaje: `Reserva ${nuevoEstado.toLowerCase()} exitosamente`,
-                nuevoEstado: nuevoEstado
-            });
+            return res.status(500).send("Error al cambiar estado de reserva");
         }
+        if (result.affectedRows === 0) {
+            return res.status(404).send("Reserva no encontrada");
+        }
+
+        // Buscar los datos completos de la reserva para notificar (socket + correo)
+        const queryDatos = `
+    SELECT r.*, u.NOMBRE as USUARIO_NOMBRE, u.CORREO as USUARIO_CORREO, 
+           u.TELEFONO as USUARIO_TELEFONO, rec.NOMBRE as RECURSO_NOMBRE
+    FROM reservas r
+    JOIN usuarios u ON r.USUARIO_ID = u.USUARIO_ID
+    JOIN recursos rec ON r.RECURSOS_ID = rec.RECURSOS_ID
+    WHERE r.RESERVAS_ID = ?
+`;
+
+        connection.query(queryDatos, [id], async (err2, rows) => {
+            if (!err2 && rows.length > 0) {
+                const reserva = rows[0];
+
+                // Notificación en tiempo real (Socket.io)
+                const io = req.app.get('io');
+                io.to(`usuario_${reserva.USUARIO_ID}`).emit('reserva_actualizada', {
+                    mensaje: `Tu reserva #${id} fue ${nuevoEstado.toLowerCase()}`,
+                    reservaId: id,
+                    nuevoEstado: nuevoEstado
+                });
+
+                // Notificación por correo (solo para CONFIRMADA o CANCELADA)
+                if (nuevoEstado === 'CONFIRMADA' || nuevoEstado === 'CANCELADA') {
+                    enviarCorreoEstadoReserva(reserva, nuevoEstado);
+                    
+                }
+            }
+        });
+
+        res.json({
+            mensaje: `Reserva ${nuevoEstado.toLowerCase()} exitosamente`,
+            nuevoEstado: nuevoEstado
+        });
     });
 });
+
+// Función auxiliar para enviar el correo de cambio de estado
+function enviarCorreoEstadoReserva(reserva, nuevoEstado) {
+    const esConfirmada = nuevoEstado === 'CONFIRMADA';
+
+    const fechaInicio = new Date(reserva.FECHA_INICIO).toLocaleString('es-EC', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+    });
+    const fechaFin = new Date(reserva.FECHA_FIN).toLocaleTimeString('es-EC', {
+        hour: '2-digit', minute: '2-digit'
+    });
+
+    const asunto = esConfirmada
+        ? '✅ Tu reserva ha sido aprobada'
+        : '❌ Tu reserva ha sido rechazada';
+
+    const colorPrincipal = esConfirmada ? '#16a34a' : '#CC0000';
+    const mensajePrincipal = esConfirmada
+        ? 'Tu solicitud de reserva ha sido <strong>aprobada</strong>. Ya puedes hacer uso del espacio en el horario indicado.'
+        : 'Lamentablemente tu solicitud de reserva ha sido <strong>rechazada</strong>. Puedes intentar reservar en otro horario o espacio disponible.';
+
+    transporter.sendMail({
+        from: `"ULEAM Reservas" <${process.env.EMAIL_USER}>`,
+        to: reserva.USUARIO_CORREO,
+        subject: asunto,
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+                <h2 style="color: ${colorPrincipal};">ULEAM Reservas</h2>
+                <p>Hola ${reserva.USUARIO_NOMBRE},</p>
+                <p>${mensajePrincipal}</p>
+                <div style="background: #f9fafb; padding: 16px; border-radius: 10px; margin: 20px 0; border-left: 4px solid ${colorPrincipal};">
+                    <p style="margin: 4px 0;"><strong>Espacio:</strong> ${reserva.RECURSO_NOMBRE}</p>
+                    <p style="margin: 4px 0;"><strong>Fecha y hora de inicio:</strong> ${fechaInicio}</p>
+                    <p style="margin: 4px 0;"><strong>Hora de fin:</strong> ${fechaFin}</p>
+                    <p style="margin: 4px 0;"><strong>Reserva #:</strong> ${reserva.RESERVAS_ID}</p>
+                </div>
+                <p style="color: #6b7280; font-size: 13px;">
+                    Si tienes dudas, contacta a reservas@uleam.edu.ec
+                </p>
+            </div>
+        `
+    }).catch(err => {
+        console.error('Error al enviar correo de estado de reserva:', err);
+    });
+}
+
 
 // 7. OBTENER RESERVAS PENDIENTES (Solo Admin) probrar en Postman
 router.get("/admin/reservas/pendientes", verificarAdmin, (req, res) => {

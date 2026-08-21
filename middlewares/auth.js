@@ -8,7 +8,7 @@ const verificarAutenticacion = (req, res, next) => {
     next();
 };
 
-// Middleware para verificar si es administrador
+// Middleware para verificar si es administrador (usando TIPO)
 const verificarAdmin = (req, res, next) => {
     if (!req.session.usuario) {
         return res.status(401).json({
@@ -16,7 +16,7 @@ const verificarAdmin = (req, res, next) => {
         });
     }
 
-    if (req.session.usuario.rolId !== 1) {
+    if (req.session.usuario.tipo !== 'ADMINISTRADOR') {
         return res.status(403).json({
             mensaje: "Acceso denegado. Solo administradores pueden realizar esta acción."
         });
@@ -24,7 +24,7 @@ const verificarAdmin = (req, res, next) => {
     next();
 };
 
-// Middleware para verificar si es profesor o admin
+// Middleware para verificar si es profesor o admin (usando TIPO)
 const verificarProfesorOAdmin = (req, res, next) => {
     if (!req.session.usuario) {
         return res.status(401).json({
@@ -32,8 +32,8 @@ const verificarProfesorOAdmin = (req, res, next) => {
         });
     }
 
-    const { rolId, tipo } = req.session.usuario;
-    if (rolId !== 1 && tipo !== 'PROFESOR') {
+    const { tipo } = req.session.usuario;
+    if (tipo !== 'ADMINISTRADOR' && tipo !== 'PROFESOR') {
         return res.status(403).json({
             mensaje: "Acceso denegado. Solo profesores y administradores pueden realizar esta acción."
         });
@@ -64,7 +64,3 @@ module.exports = {
     verificarProfesorOAdmin,
     verificarUsuarioAutenticado
 };
-
-// Middleware Sirve para verificar si el usuario es un profesor o un administrador 
-// y si está autenticado, permitiendo el acceso a ciertas rutas según su rol.
-// Se utiliza en rutas que requieren permisos especiales, como la gestión de cursos o usuarios.
