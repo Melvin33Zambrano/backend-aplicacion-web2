@@ -94,14 +94,16 @@ router.post('/registro', async (req, res) => {
     }
 
     // Solo se permite Estudiante o Profesor en el registro público
-    const tiposPermitidos = ['Estudiante', 'Profesor'];
-    if (!tiposPermitidos.includes(TIPO)) {
-        return res.status(400).json({ mensaje: "Rol no permitido para registro" });
-    }
+    const dominiosPermitidos = [
+    '@uleam.edu.ec',
+    '@live.uleam.edu.ec'
+];
 
-    if (!CORREO.endsWith('@uleam.edu.ec')) {
-        return res.status(400).json({ mensaje: "Debe usar un correo institucional @uleam.edu.ec" });
-    }
+if (!dominiosPermitidos.some(dominio => CORREO.toLowerCase().endsWith(dominio))) {
+    return res.status(400).json({
+        mensaje: "Debe usar un correo institucional de la ULEAM"
+    });
+}
 
     try {
         connection.query('SELECT USUARIO_ID FROM usuarios WHERE CORREO = ?', [CORREO], async (err, results) => {
