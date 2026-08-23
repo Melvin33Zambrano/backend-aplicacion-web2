@@ -198,24 +198,32 @@ router.get("/reserva/:id", verificarAutenticacion, (req, res) => {
 // 4. ACTUALIZAR RESERVA (Solo el dueño de la reserva o admin)
 router.put("/reserva/:id", verificarAutenticacion, (req, res) => {
     const id = req.params.id;
-    const datosActualizar = {
-        USUARIO_ID: req.body.USUARIO_ID,
-        RECURSOS_ID: req.body.RECURSOS_ID,
-        FECHA_INICIO: req.body.FECHA_INICIO,
-        FECHA_FIN: req.body.FECHA_FIN,
-        ESTADO: req.body.ESTADO
-    };
+    const { USUARIO_ID, RECURSOS_ID, FECHA_INICIO, FECHA_FIN, ESTADO } = req.body;
 
-    const query = 'UPDATE reservas SET ? WHERE RESERVAS_ID = ?';
+    let campos = [];
+    let valores = [];
 
-    connection.query(query, [datosActualizar, id], (err, result) => {
+    if (USUARIO_ID !== undefined) { campos.push("USUARIO_ID = ?"); valores.push(USUARIO_ID); }
+    if (RECURSOS_ID !== undefined) { campos.push("RECURSOS_ID = ?"); valores.push(RECURSOS_ID); }
+    if (FECHA_INICIO !== undefined) { campos.push("FECHA_INICIO = ?"); valores.push(FECHA_INICIO); }
+    if (FECHA_FIN !== undefined) { campos.push("FECHA_FIN = ?"); valores.push(FECHA_FIN); }
+    if (ESTADO !== undefined) { campos.push("ESTADO = ?"); valores.push(ESTADO); }
+
+    if (campos.length === 0) {
+        return res.status(400).json({ mensaje: "No hay datos para actualizar" });
+    }
+
+    valores.push(id);
+    const query = `UPDATE reservas SET ${campos.join(", ")} WHERE RESERVAS_ID = ?`;
+
+    connection.query(query, valores, (err, result) => {
         if (err) {
             console.error("Error al actualizar reserva:", err);
-            res.status(500).send("Error al actualizar reserva"); // <--- AQUÍ SE PRODUCE EL 500
+            return res.status(500).send("Error al actualizar reserva");
         } else if (result.affectedRows === 0) {
-            res.status(404).send("Reserva no encontrada");
+            return res.status(404).send("Reserva no encontrada");
         } else {
-            res.send("Reserva actualizada exitosamente");
+            return res.send("Reserva actualizada exitosamente");
         }
     });
 });
