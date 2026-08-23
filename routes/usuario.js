@@ -80,7 +80,7 @@ router.delete('/:id', verificarAdmin, (req, res) => {
 });
 
 router.post('/registro', async (req, res) => {
-    const { NOMBRE, APELLIDO, CORREO, CONTRASENA, TIPO,  } = req.body;
+    const { NOMBRE, APELLIDO, CORREO, CONTRASENA, TIPO, TELEFONO } = req.body;
 
     // Validar campos obligatorios
     if (!NOMBRE || !APELLIDO || !CORREO || !CONTRASENA || !TIPO || !TELEFONO) {
