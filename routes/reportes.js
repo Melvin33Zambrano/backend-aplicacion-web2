@@ -31,22 +31,28 @@ router.get("/reportes/por-espacio", verificarAdmin, (req, res) => {
 router.get("/reportes/por-mes", verificarAdmin, (req, res) => {
     const query = `
         SELECT 
-            DATE_FORMAT(FECHA_INICIO, '%Y-%m') as mes,
-            DATE_FORMAT(FECHA_INICIO, '%M %Y') as mes_nombre,
-            COUNT(*) as total,
-            SUM(CASE WHEN ESTADO = 'CONFIRMADA' THEN 1 ELSE 0 END) as confirmadas,
-            SUM(CASE WHEN ESTADO = 'PENDIENTE' THEN 1 ELSE 0 END) as pendientes,
-            SUM(CASE WHEN ESTADO = 'CANCELADA' THEN 1 ELSE 0 END) as canceladas
+            DATE_FORMAT(FECHA_INICIO, '%Y-%m') AS mes,
+            DATE_FORMAT(FECHA_INICIO, '%M %Y') AS mes_nombre,
+            COUNT(*) AS total,
+            SUM(CASE WHEN ESTADO = 'CONFIRMADA' THEN 1 ELSE 0 END) AS confirmadas,
+            SUM(CASE WHEN ESTADO = 'PENDIENTE' THEN 1 ELSE 0 END) AS pendientes,
+            SUM(CASE WHEN ESTADO = 'CANCELADA' THEN 1 ELSE 0 END) AS canceladas
         FROM reservas
-        GROUP BY DATE_FORMAT(FECHA_INICIO, '%Y-%m')
+        GROUP BY 
+            DATE_FORMAT(FECHA_INICIO, '%Y-%m'),
+            DATE_FORMAT(FECHA_INICIO, '%M %Y')
         ORDER BY mes ASC
     `;
 
     connection.query(query, (err, results) => {
         if (err) {
             console.error("Error al obtener reporte por mes:", err);
-            return res.status(500).json({ mensaje: "Error al generar reporte" });
+            return res.status(500).json({
+                mensaje: "Error al generar reporte",
+                error: err.message
+            });
         }
+
         res.json(results);
     });
 });
