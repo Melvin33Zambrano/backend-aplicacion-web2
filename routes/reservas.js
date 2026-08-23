@@ -211,7 +211,7 @@ router.put("/reserva/:id", verificarAutenticacion, (req, res) => {
     connection.query(query, [datosActualizar, id], (err, result) => {
         if (err) {
             console.error("Error al actualizar reserva:", err);
-            res.status(500).send("Error al actualizar reserva");
+            res.status(500).send("Error al actualizar reserva"); // <--- AQUÍ SE PRODUCE EL 500
         } else if (result.affectedRows === 0) {
             res.status(404).send("Reserva no encontrada");
         } else {
